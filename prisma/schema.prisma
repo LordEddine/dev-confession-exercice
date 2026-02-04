@@ -1,0 +1,68 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId    String   @unique
+  username   String?
+  imageUrl   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  confessions Confession[]
+  reactions   Reaction[]
+}
+
+model Confession {
+  id        String   @id @default(cuid())
+  content   String
+  isAnonymous Boolean @default(true)
+  category  Category @default(BUG)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  authorId  String
+  author    User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  reactions Reaction[]
+
+  @@index([authorId])
+}
+
+model Reaction {
+  id        String   @id @default(cuid())
+  emoji     Emoji
+  createdAt DateTime @default(now())
+
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  confessionId String
+  confession   Confession @relation(fields: [confessionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, confessionId, emoji])
+  @@index([confessionId])
+  @@index([userId])
+}
+
+enum Category {
+  BUG
+  GIT_DISASTER
+  PRODUCTION_FAIL
+  STACKOVERFLOW
+  IMPOSTER_SYNDROME
+  COFFEE_NEEDED
+}
+
+enum Emoji {
+  LAUGH      // 😂
+  FACEPALM   // 🤦
+  SKULL      // 💀
+  SALUTE     // 🫡
+  FIRE       // 🔥
+  HEART      // ❤️
+}
