@@ -12,12 +12,39 @@ model User {
   clerkId    String   @unique
   username   String?
   imageUrl   String?
+
+  credits     Int @default(5)
+  karma       Int @default(0)
+
+
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   confessions Confession[]
   reactions   Reaction[]
+  payments    Payment[] // Pour historique de payement
 }
+
+model Payment{
+  id            String      @id @default(cuid())
+  amount        Float
+  credits       Int
+  status        PaymentStatus   @default(PENDING)
+  createdAt     DateTime @default(now())
+
+  userId        String 
+  user          User      @relation(fields:[userId], references:[id], onDelete: Cascade)
+
+  @@index([userId]) // acces quasi-instantane
+}
+
+enum PaymentStatus{
+  PENDING 
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
 
 model Confession {
   id        String   @id @default(cuid())

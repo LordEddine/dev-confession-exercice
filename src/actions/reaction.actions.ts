@@ -12,8 +12,9 @@ export async function toggleReaction(confessionId: string, emoji: Emoji) {
     throw new Error("Connectez-vous pour réagir");
   }
 
-  // Vérifier si la réaction existe déjà
-  const existingReaction = await prisma.reaction.findUnique({
+  const result = await prisma.$transaction(async(tx)=>{
+    // Vérifier si la réaction existe déjà
+  const existingReaction = await tx.reaction.findUnique({
     where: {
       userId_confessionId_emoji: {
         userId: user.id,
@@ -23,24 +24,80 @@ export async function toggleReaction(confessionId: string, emoji: Emoji) {
     },
   });
 
+
   if (existingReaction) {
     // Supprimer la réaction
-    await prisma.reaction.delete({
+    await tx.reaction.delete({
       where: { id: existingReaction.id },
     });
-  } else {
-    // Créer la réaction
-    await prisma.reaction.create({
-      data: {
-        emoji,
-        userId: user.id,
-        confessionId,
-      },
+    await tx.user.update({
+      where:{id: user.id},
+      data:{
+        credits:{increment: 1}
+      }
+    });
+
+    const confession = await tx.confession.findUnique({
+      where:{id : confessionId},
+    })
+
+    if(confession && confession.authorId !== user.id){
+      await tx.user.update({
+        where:{id: confession.authorId},
+        data:{
+          karma:{decrement:1}
+        },
+      });
+    }
+
+    return { action:"Supprimer une reaction", credit_restant: user.credits };
+
+  } 
+
+  // Creation d'une reaction
+
+  const freshUser = await tx.user.findUnique({
+    where:{id: user.id},
+  });
+
+
+  if(!freshUser || freshUser.credits == 0){
+    throw new Error("Pas assez de credit ! Veuillez en achete !"); // ROLLBACK
+  }
+
+  await tx.reaction.create({
+    data:{
+      emoji,
+      userId : user.id,
+      confessionId,
+    }
+  });
+
+  await tx.user.update({
+    where:{id: user.id},
+    data:{credits:{decrement:1}},
+  })
+
+  const confession = await tx.confession.findUnique({ // SELECT authorId from confession where id = confessionId;
+    where:{id : confessionId},
+    select : {authorId: true}
+  });
+
+  if(confession && confession.authorId !== user.id){
+    await tx.user.update({
+      where:{id: confession.authorId},
+      data:{karma:{increment:1}},
     });
   }
 
+  return { action: "Ajouter Reaction", credit_restant: freshUser.credits};
+  });
+
+
   revalidatePath("/");
   revalidatePath("/confessions");
+
+  return result;
 }
 
 export async function getReactionCounts(confessionId: string) {

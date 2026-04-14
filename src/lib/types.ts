@@ -36,3 +36,12 @@ export type ConfessionWithReactions = {
     reactions: number;
   };
 };
+
+export const CREDIT_PACK = [
+    {id:"pack_10",credits:10,price:0.99,label:"10 credits",popular:false},
+    {id:"pack_50",credits:50,price:3.99,label:"50 credits",popular:true},
+    {id:"pack_100",credits:100,price:6.99,label:"100 credits",popular:false},
+    {id:"pack_500",credits:500,price:29.99,label:"500 credits",popular:false},
+] as const;
+
+export type PackId = typeof CREDIT_PACK[number]["id"];
